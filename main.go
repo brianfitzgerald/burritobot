@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -77,12 +78,15 @@ func main() {
 			fmt.Printf("Message: %v\n", ev)
 			println(ev.Channel)
 
+			foodCountRegex := regexp.MustCompile(":taco:|:burrito:")
+			foodCount := foodCountRegex.FindAllStringIndex(ev.Text, -1)
+
 			if strings.Contains(ev.Text, ":burrito:") {
-				sendBurritoOrTaco(ev, api, svc, burrito)
+				sendBurritoOrTaco(ev, api, svc, burrito, len(foodCount))
 			}
 
 			if strings.Contains(ev.Text, ":taco:") {
-				sendBurritoOrTaco(ev, api, svc, taco)
+				sendBurritoOrTaco(ev, api, svc, taco, len(foodCount))
 			}
 
 		case *slack.PresenceChangeEvent:
@@ -169,7 +173,7 @@ func updateUserStats(user *userStats, svc *dynamodb.DynamoDB) error {
 
 }
 
-func sendBurritoOrTaco(ev *slack.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB, foodType foodType) error {
+func sendBurritoOrTaco(ev *slack.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB, foodType foodType, count int) error {
 
 	messageText := ev.Text
 	mentionedUserID := messageText[strings.Index(ev.Text, "<")+2 : strings.Index(ev.Text, ">")]
@@ -198,29 +202,33 @@ func sendBurritoOrTaco(ev *slack.MessageEvent, api *slack.Client, dynamoSvc *dyn
 	if foodType == burrito {
 		updatedStat = receivingUser.BurritosReceived
 	}
-	updatedMessage := fmt.Sprintf("They have now received %d.", updatedStat+1)
+	updatedMessage := fmt.Sprintf("They have now received %d.", updatedStat+count)
 	if foodType == taco {
 		updatedMessage = ""
 	}
 
 	// send burrito / taco to user
-	message := fmt.Sprintf("User %s just got a %s from %s! %s", recipient.RealName, foodType.String(), sender.RealName, updatedMessage)
+	justGot := fmt.Sprintf(" a %s", foodType)
+	if count > 1 {
+		justGot = fmt.Sprintf("%d %ss", count, foodType)
+	}
+	message := fmt.Sprintf("User %s just got %s from %s! %s", recipient.RealName, justGot, sender.RealName, updatedMessage)
 	_, _, err = api.PostMessage(ev.Channel, slack.MsgOptionText(message, false))
 	if err != nil {
 		return err
 	}
 
 	if foodType == burrito {
-		sendingUser.BurritoReserve--
-		receivingUser.BurritosReceived++
-		receivingUser.BurritoReserve++
-		message := fmt.Sprintf("%s now has %d burritos left in stock, and %s now has %d.", sender.RealName, sendingUser.BurritoReserve-1, receivingUser.SlackDisplayName, receivingUser.BurritoReserve+1)
+		sendingUser.BurritoReserve -= count
+		receivingUser.BurritosReceived += count
+		receivingUser.BurritoReserve += count
+		message := fmt.Sprintf("%s now has %d burritos left in stock, and %s now has %d.", sender.RealName, sendingUser.BurritoReserve-count, receivingUser.SlackDisplayName, receivingUser.BurritoReserve+count)
 		_, _, err = api.PostMessage(ev.Channel, slack.MsgOptionText(message, false))
 		if err != nil {
 			return err
 		}
 	} else if foodType == taco {
-		receivingUser.TacosReceived++
+		receivingUser.TacosReceived += count
 	}
 
 	updateUserStats(sendingUser, dynamoSvc)
