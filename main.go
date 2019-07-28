@@ -77,11 +77,11 @@ func main() {
 			fmt.Printf("Message: %v\n", ev)
 			println(ev.Channel)
 
-			if strings.Contains(ev.Text, ":burrito:") && contains(channels, ev.Channel) {
+			if strings.Contains(ev.Text, ":burrito:") {
 				sendBurritoOrTaco(ev, api, svc, burrito)
 			}
 
-			if strings.Contains(ev.Text, ":taco:") && contains(channels, ev.Channel) {
+			if strings.Contains(ev.Text, ":taco:") {
 				sendBurritoOrTaco(ev, api, svc, taco)
 			}
 
@@ -213,7 +213,8 @@ func sendBurritoOrTaco(ev *slack.MessageEvent, api *slack.Client, dynamoSvc *dyn
 	if foodType == burrito {
 		sendingUser.BurritoReserve--
 		receivingUser.BurritosReceived++
-		message := fmt.Sprintf("%s now has %d burritos left in stock.", sender.RealName, sendingUser.BurritoReserve-1)
+		receivingUser.BurritoReserve++
+		message := fmt.Sprintf("%s now has %d burritos left in stock, and %s now has %d.", sender.RealName, sendingUser.BurritoReserve-1, receivingUser.SlackDisplayName, receivingUser.BurritoReserve+1)
 		_, _, err = api.PostMessage(ev.Channel, slack.MsgOptionText(message, false))
 		if err != nil {
 			return err
