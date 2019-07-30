@@ -36,20 +36,15 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	eventsAPIEvent, e := slackevents.ParseEvent(json.RawMessage([]byte(request.Body)), slackevents.OptionNoVerifyToken())
 	if e != nil {
-		println("parse error")
 		return events.APIGatewayProxyResponse{}, e
 	}
-
-	fmt.Println(eventsAPIEvent)
 
 	if eventsAPIEvent.Type == slackevents.URLVerification {
 		var r *slackevents.ChallengeResponse
 		err := json.Unmarshal([]byte(body), &r)
 		if err != nil {
-			println("unmarshal error")
 			return events.APIGatewayProxyResponse{}, nil
 		}
-		println(r.Challenge)
 		return events.APIGatewayProxyResponse{
 			StatusCode: 200, Headers: map[string]string{
 				"Access-Control-Allow-Origin":      "*",    // Required for CORS support to work
@@ -69,16 +64,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			sess := session.New()
 			svc := dynamodb.New(sess)
 
-			println(ev.Text)
-
 			if strings.Contains(ev.Text, ":burrito:") {
 				sendBurritoOrTaco(ev, api, svc, model.Burrito, len(foodCount))
-				return events.APIGatewayProxyResponse{}, nil
+				return model.GoodResponse, nil
 			}
 
 			if strings.Contains(ev.Text, ":taco:") {
 				sendBurritoOrTaco(ev, api, svc, model.Taco, len(foodCount))
-				return events.APIGatewayProxyResponse{}, nil
+				return model.GoodResponse, nil
 			}
 
 		}

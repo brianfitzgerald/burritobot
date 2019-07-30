@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -16,6 +17,13 @@ type UserStats struct {
 	TacosReceived    int    `json:"tacos_received"`
 	BurritosReceived int    `json:"burritos_received"`
 }
+
+var (
+	GoodResponse = events.APIGatewayProxyResponse{Body: "", StatusCode: 200, Headers: map[string]string{
+		"Access-Control-Allow-Origin":      "*",    // Required for CORS support to work
+		"Access-Control-Allow-Credentials": "true", // Required for cookies, authorization headers with HTTPS
+	}}
+)
 
 func InitAllUsers(api *slack.Client, dynamoSvc *dynamodb.DynamoDB) {
 	users, err := api.GetUsers()
