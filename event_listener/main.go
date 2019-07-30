@@ -136,6 +136,11 @@ func sendBurritoOrTaco(ev *slack.MessageEvent, api *slack.Client, dynamoSvc *dyn
 		}
 	} else if foodType == model.Taco {
 		receivingUser.TacosReceived += count
+		message := fmt.Sprintf("%s has received %d tacos total.", recipient.RealName, receivingUser.TacosReceived+count)
+		_, _, err = api.PostMessage(ev.Channel, slack.MsgOptionText(message, false))
+		if err != nil {
+			return err
+		}
 	}
 
 	model.UpdateUserStats(sendingUser, dynamoSvc)
