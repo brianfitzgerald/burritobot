@@ -2,6 +2,7 @@ package main
 
 import (
 	"burritobot/model"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -11,17 +12,81 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/session"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/nlopes/slack"
+	"github.com/nlopes/slack/slackevents"
 )
 
 func main() {
 	lambda.Start(handler)
+	// local()
+}
+
+type verificationEvent struct {
+	Token     string `json:"token"`
+	Challenge string `json:"challenge"`
+	Type      string `json:"type"`
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
+	println(request.Body)
+
+	body := request.Body
+
+	eventsAPIEvent, e := slackevents.ParseEvent(json.RawMessage([]byte(request.Body)), slackevents.OptionNoVerifyToken())
+	if e != nil {
+		println("parse error")
+		return events.APIGatewayProxyResponse{}, e
+	}
+
+	fmt.Println(eventsAPIEvent)
+
+	if eventsAPIEvent.Type == slackevents.URLVerification {
+		var r *slackevents.ChallengeResponse
+		err := json.Unmarshal([]byte(body), &r)
+		if err != nil {
+			println("unmarshal error")
+			return events.APIGatewayProxyResponse{}, nil
+		}
+		println(r.Challenge)
+		return events.APIGatewayProxyResponse{
+			StatusCode: 200, Headers: map[string]string{
+				"Access-Control-Allow-Origin":      "*",    // Required for CORS support to work
+				"Access-Control-Allow-Credentials": "true", // Required for cookies, authorization headers with HTTPS
+				"Content-Type":                     "text",
+			}, Body: r.Challenge,
+		}, nil
+	}
+	if eventsAPIEvent.Type == slackevents.CallbackEvent {
+		innerEvent := eventsAPIEvent.InnerEvent
+		switch ev := innerEvent.Data.(type) {
+		case *slackevents.MessageEvent:
+			foodCountRegex := regexp.MustCompile(":taco:|:burrito:")
+			foodCount := foodCountRegex.FindAllStringIndex(ev.Text, -1)
+
+			api := slack.New(model.SlackKey)
+			sess := session.New()
+			svc := dynamodb.New(sess)
+
+			println(ev.Text)
+
+			if strings.Contains(ev.Text, ":burrito:") {
+				sendBurritoOrTaco(ev, api, svc, model.Burrito, len(foodCount))
+				return events.APIGatewayProxyResponse{}, nil
+			}
+
+			if strings.Contains(ev.Text, ":taco:") {
+				sendBurritoOrTaco(ev, api, svc, model.Taco, len(foodCount))
+				return events.APIGatewayProxyResponse{}, nil
+			}
+
+		}
+	}
+	return events.APIGatewayProxyResponse{}, nil
+}
+
+func local() {
 	api := slack.New(model.SlackKey)
 
 	rtm := api.NewRTM()
@@ -29,9 +94,9 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	os.Setenv("AWS_PROFILE", "personal")
 
-	svc := dynamodb.New(session.New(&aws.Config{
-		Region: aws.String("us-east-1"),
-	}))
+	// svc := dynamodb.New(session.New(&aws.Config{
+	// 	Region: aws.String("us-east-1"),
+	// }))
 
 	// initAllUsers(api, svc)
 
@@ -46,19 +111,21 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			fmt.Println("Connection counter:", ev.ConnectionCount)
 
 		case *slack.MessageEvent:
-			fmt.Printf("Message: %v\n", ev)
-			println(ev.Channel)
+			/*
+				fmt.Printf("Message: %v\n", ev)
+				println(ev.Channel)
 
-			foodCountRegex := regexp.MustCompile(":taco:|:burrito:")
-			foodCount := foodCountRegex.FindAllStringIndex(ev.Text, -1)
+				foodCountRegex := regexp.MustCompile(":taco:|:burrito:")
+				foodCount := foodCountRegex.FindAllStringIndex(ev.Text, -1)
 
-			if strings.Contains(ev.Text, ":burrito:") {
-				sendBurritoOrTaco(ev, api, svc, model.Burrito, len(foodCount))
-			}
+				if strings.Contains(ev.Text, ":burrito:") {
+					sendBurritoOrTaco(ev, api, svc, model.Burrito, len(foodCount))
+				}
 
-			if strings.Contains(ev.Text, ":taco:") {
-				sendBurritoOrTaco(ev, api, svc, model.Taco, len(foodCount))
-			}
+				if strings.Contains(ev.Text, ":taco:") {
+					sendBurritoOrTaco(ev, api, svc, model.Taco, len(foodCount))
+				}
+			*/
 
 		case *slack.PresenceChangeEvent:
 			fmt.Printf("Presence Change: %v\n", ev)
@@ -76,11 +143,9 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 		}
 	}
-
-	return events.APIGatewayProxyResponse{}, nil
 }
 
-func sendBurritoOrTaco(ev *slack.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB, foodType model.FoodType, count int) error {
+func sendBurritoOrTaco(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB, foodType model.FoodType, count int) error {
 
 	messageText := ev.Text
 	mentionedUserID := messageText[strings.Index(ev.Text, "<")+2 : strings.Index(ev.Text, ">")]

@@ -17,15 +17,15 @@ package:
     - ./bin/**
 
 functions:
-  receiver:
-    handler: bin/receiver
+  event_listener:
+    handler: bin/event_listener
     events:
       - http:
-          path: receive
+          path: event_listener
           method: post
           cors:
-            origin: "*" # <-- Specify allowed origin
-            headers: # <-- Specify allowed headers
+            origin: "*"
+            headers:
               - Content-Type
               - X-Amz-Date
               - Authorization
@@ -33,9 +33,3 @@ functions:
               - X-Amz-Security-Token
               - X-Amz-User-Agent
             allowCredentials: false
-  emailer:
-    handler: bin/emailer
-    events:
-      - schedule:
-          rate: rate(7 days)
-          enabled: true
