@@ -1,0 +1,41 @@
+service: burritobot
+
+provider:
+  name: aws
+  runtime: go1.x
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:*"
+      Resource:
+        - "arn:aws:dynamodb:us-east-1:288184449763:table/burritobot_user_stats"
+
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/**
+
+functions:
+  receiver:
+    handler: bin/receiver
+    events:
+      - http:
+          path: receive
+          method: post
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  emailer:
+    handler: bin/emailer
+    events:
+      - schedule:
+          rate: rate(7 days)
+          enabled: true
