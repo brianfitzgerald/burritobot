@@ -98,6 +98,25 @@ func GetUserStats(senderID string, dynamoSvc *dynamodb.DynamoDB) *UserStats {
 
 }
 
+func GetAllUsers(dynamoSvc *dynamodb.DynamoDB) []UserStats {
+	// get sender
+	getAllUsersInput := &dynamodb.ScanInput{
+		TableName: aws.String(statsTableName),
+	}
+	res, err := dynamoSvc.Scan(getAllUsersInput)
+	if err != nil {
+		fmt.Println(err)
+	}
+	users := []UserStats{}
+	err = dynamodbattribute.UnmarshalListOfMaps(res.Items, users)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return users
+
+}
+
 func UpdateUserStats(user *UserStats, svc *dynamodb.DynamoDB) error {
 
 	item, err := dynamodbattribute.MarshalMap(user)

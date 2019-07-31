@@ -33,3 +33,9 @@ functions:
               - X-Amz-Security-Token
               - X-Amz-User-Agent
             allowCredentials: false
+  weekly_updater:
+    handler: bin/weekly_updater
+    events:
+      - schedule:
+          rate: rate(7 days)
+          enabled: true
