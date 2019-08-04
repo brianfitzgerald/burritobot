@@ -25,6 +25,11 @@ var (
 	}}
 )
 
+const (
+	WeeklyUpdateChannel   = "meme"
+	BurritoDividendAmount = 3
+)
+
 func InitAllUsers(api *slack.Client, dynamoSvc *dynamodb.DynamoDB) {
 	users, err := api.GetUsers()
 	if err != nil {
@@ -108,12 +113,44 @@ func GetAllUsers(dynamoSvc *dynamodb.DynamoDB) []UserStats {
 		fmt.Println(err)
 	}
 	users := []UserStats{}
-	err = dynamodbattribute.UnmarshalListOfMaps(res.Items, users)
+	err = dynamodbattribute.UnmarshalListOfMaps(res.Items, &users)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	return users
+
+}
+
+func UpdateAllUsers(dynamoSvc *dynamodb.DynamoDB, users []UserStats) {
+
+	inputValues := []*dynamodb.WriteRequest{}
+
+	for _, user := range users {
+		user.BurritoReserve += BurritoDividendAmount
+		userObject, err := dynamodbattribute.MarshalMap(user)
+		if err != nil {
+			fmt.Println(err)
+		}
+		r := &dynamodb.WriteRequest{
+			PutRequest: &dynamodb.PutRequest{
+				Item: userObject,
+			},
+		}
+		inputValues = append(inputValues, r)
+	}
+
+	input := &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]*dynamodb.WriteRequest{
+			statsTableName: inputValues,
+		},
+	}
+
+	_, err := dynamoSvc.BatchWriteItem(input)
+
+	if err != nil {
+		fmt.Println(err)
+	}
 
 }
 

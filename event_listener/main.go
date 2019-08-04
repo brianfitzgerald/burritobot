@@ -167,7 +167,7 @@ func sendBurritoOrTaco(ev *slackevents.MessageEvent, api *slack.Client, dynamoSv
 	if foodType == model.Burrito {
 		updatedStat = receivingUser.BurritosReceived
 	}
-	updatedMessage := fmt.Sprintf("They have now received %d.", updatedStat+count)
+	updatedMessage := fmt.Sprintf("They have now received %d total.", updatedStat+count)
 	if foodType == model.Taco {
 		updatedMessage = ""
 	}
@@ -187,7 +187,7 @@ func sendBurritoOrTaco(ev *slackevents.MessageEvent, api *slack.Client, dynamoSv
 		sendingUser.BurritoReserve -= count
 		receivingUser.BurritosReceived += count
 		receivingUser.BurritoReserve += count
-		message := fmt.Sprintf("%s now has %d burritos left in stock, and %s now has %d.", sender.RealName, sendingUser.BurritoReserve-count, receivingUser.SlackDisplayName, receivingUser.BurritoReserve+count)
+		message := fmt.Sprintf("%s now has %d burritos left, and %s now has %d.", sender.RealName, sendingUser.BurritoReserve-count, receivingUser.SlackDisplayName, receivingUser.BurritoReserve+count)
 		_, _, err = api.PostMessage(ev.Channel, slack.MsgOptionText(message, false))
 		if err != nil {
 			return err
