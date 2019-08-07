@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -13,8 +14,8 @@ import (
 )
 
 func main() {
-	// lambda.Start(handler)
-	handler(events.APIGatewayProxyRequest{})
+	lambda.Start(handler)
+	// handler(events.APIGatewayProxyRequest{})
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -62,5 +63,5 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{}, err
 	}
 
-	return events.APIGatewayProxyResponse{}, nil
+	return model.GoodResponse, nil
 }
