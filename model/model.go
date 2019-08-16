@@ -16,12 +16,13 @@ type UserStats struct {
 	BurritoReserve   int    `json:"burrito_reserve"`
 	TacosReceived    int    `json:"tacos_received"`
 	BurritosReceived int    `json:"burritos_received"`
+	PitContribution  int    `json:"pit_contribution"`
 }
 
 var (
 	GoodResponse = events.APIGatewayProxyResponse{Body: "", StatusCode: 200, Headers: map[string]string{
-		"Access-Control-Allow-Origin":      "*",    // Required for CORS support to work
-		"Access-Control-Allow-Credentials": "true", // Required for cookies, authorization headers with HTTPS
+		"Access-Control-Allow-Origin":      "*",
+		"Access-Control-Allow-Credentials": "true",
 	}}
 )
 

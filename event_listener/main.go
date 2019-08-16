@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -20,12 +21,6 @@ import (
 func main() {
 	lambda.Start(handler)
 	// local()
-}
-
-type verificationEvent struct {
-	Token     string `json:"token"`
-	Challenge string `json:"challenge"`
-	Type      string `json:"type"`
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -57,20 +52,27 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.MessageEvent:
-			foodCountRegex := regexp.MustCompile(":taco:|:burrito:")
-			foodCount := foodCountRegex.FindAllStringIndex(ev.Text, -1)
+			burritoCountRegex := regexp.MustCompile(":burrito:")
+			tacoCountRegex := regexp.MustCompile(":taco:")
+			burritoCount := len(burritoCountRegex.FindAllStringIndex(ev.Text, -1))
+			tacoCount := len(tacoCountRegex.FindAllStringIndex(ev.Text, -1))
 
 			api := slack.New(model.SlackKey)
 			sess := session.New()
 			svc := dynamodb.New(sess)
 
+			if strings.Contains(ev.Text, "pit_contribute") {
+				contributeToPit(ev, api, svc, burritoCount)
+				return model.GoodResponse, nil
+			}
+
 			if strings.Contains(ev.Text, ":burrito:") {
-				sendBurritoOrTaco(ev, api, svc, model.Burrito, len(foodCount))
+				sendBurritoOrTaco(ev, api, svc, model.Burrito, burritoCount)
 				return model.GoodResponse, nil
 			}
 
 			if strings.Contains(ev.Text, ":taco:") {
-				sendBurritoOrTaco(ev, api, svc, model.Taco, len(foodCount))
+				sendBurritoOrTaco(ev, api, svc, model.Taco, tacoCount)
 				return model.GoodResponse, nil
 			}
 
@@ -136,6 +138,40 @@ func local() {
 
 		}
 	}
+}
+
+func contributeToPit(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB, count int) error {
+	sender, err := api.GetUserInfo(ev.User)
+	if err != nil {
+		return err
+	}
+
+	contributingUser := model.GetUserStats(sender.ID, dynamoSvc)
+
+	newContribution := count * 2
+	contributingUser.PitContribution += newContribution
+
+	pitNumber := 0
+
+	allUsers := model.GetAllUsers(dynamoSvc)
+
+	sort.Slice(allUsers, func(i, j int) bool {
+		return allUsers[i].PitContribution > allUsers[j].PitContribution
+	})
+
+	for i, user := range allUsers {
+		if user.SlackID == contributingUser.SlackID {
+			pitNumber = i + 1
+		}
+	}
+
+	contributionText := fmt.Sprintf("%s has contributed %d burritos to the Pit! Their Pit Number is now %d with %d total contributed.", contributingUser.SlackDisplayName, newContribution, pitNumber, newContribution+contributingUser.PitContribution)
+
+	api.SendMessage(ev.Channel, slack.MsgOptionText(contributionText, false))
+
+	model.UpdateUserStats(contributingUser, dynamoSvc)
+
+	return err
 }
 
 func sendBurritoOrTaco(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB, foodType model.FoodType, count int) error {
