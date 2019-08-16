@@ -78,6 +78,10 @@ const (
 	statsTableName = "burritobot_user_stats"
 )
 
+const (
+	NotEnoughBurritos = "You do not have enough burritos to do this!"
+)
+
 func GetUserStats(senderID string, dynamoSvc *dynamodb.DynamoDB) *UserStats {
 	senderDynamoKey := map[string]*dynamodb.AttributeValue{
 		"slack_id": {

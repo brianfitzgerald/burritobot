@@ -148,6 +148,11 @@ func contributeToPit(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc 
 
 	contributingUser := model.GetUserStats(sender.ID, dynamoSvc)
 
+	if count > contributingUser.BurritoReserve {
+		api.SendMessage(ev.Channel, slack.MsgOptionText(model.NotEnoughBurritos, false))
+		return nil
+	}
+
 	newContribution := count * 2
 	contributingUser.PitContribution += newContribution
 
@@ -200,7 +205,7 @@ func sendBurritoOrTaco(ev *slackevents.MessageEvent, api *slack.Client, dynamoSv
 
 	// make sure can send
 	if foodType == model.Burrito && sendingUser.BurritoReserve < 1 {
-		_, _, err := api.PostMessage(ev.Channel, slack.MsgOptionText("You do not have enough burritos to do this!", false))
+		_, _, err := api.PostMessage(ev.Channel, slack.MsgOptionText(model.NotEnoughBurritos, false))
 		if err != nil {
 			return err
 		}
