@@ -61,7 +61,12 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			sess := session.New()
 			svc := dynamodb.New(sess)
 
-			if strings.Contains(ev.Text, "pit_contribute") {
+			if strings.Contains(ev.Text, "!balance") {
+				showBalance(ev, api, svc)
+				return model.GoodResponse, nil
+			}
+
+			if strings.Contains(ev.Text, "!pit_contribute") {
 				contributeToPit(ev, api, svc, burritoCount)
 				return model.GoodResponse, nil
 			}
@@ -138,6 +143,25 @@ func local() {
 
 		}
 	}
+}
+
+var (
+	pitMessages = []string{
+		"*THE PIT* hungers.",
+		"*THE PIT* is eternal.",
+		"*THE PIT* opens wide.",
+	}
+)
+
+func showBalance(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB) error {
+	userStats := model.GetUserStats(ev.User, dynamoSvc)
+
+	balanceMsg := fmt.Sprintf("%s has %d burritos in their reserve.", userStats.SlackDisplayName, userStats.BurritoReserve)
+	_, _, _, err := api.SendMessage(ev.Channel, slack.MsgOptionText(balanceMsg, false))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func contributeToPit(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB, count int) error {
