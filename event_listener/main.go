@@ -154,6 +154,14 @@ func sendBurritoOrTaco(ev *slackevents.MessageEvent, api *slack.Client, dynamoSv
 	sendingUser := model.GetUserStats(sender.ID, dynamoSvc)
 	receivingUser := model.GetUserStats(recipient.ID, dynamoSvc)
 
+	if sendingUser.SlackID == receivingUser.SlackID {
+		_, _, err := api.PostMessage(ev.Channel, slack.MsgOptionText("Currency manipulation is a federal crime!", false))
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	// make sure can send
 	if foodType == model.Burrito && sendingUser.BurritoReserve < 1 {
 		_, _, err := api.PostMessage(ev.Channel, slack.MsgOptionText("You do not have enough burritos to do this!", false))
