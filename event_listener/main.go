@@ -4,10 +4,12 @@ import (
 	"burritobot/model"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -145,14 +147,6 @@ func local() {
 	}
 }
 
-var (
-	pitMessages = []string{
-		"*THE PIT* hungers.",
-		"*THE PIT* is eternal.",
-		"*THE PIT* opens wide.",
-	}
-)
-
 func showBalance(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB) error {
 	userStats := model.GetUserStats(ev.User, dynamoSvc)
 
@@ -163,6 +157,14 @@ func showBalance(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc *dyn
 	}
 	return nil
 }
+
+var (
+	pitMessages = []string{
+		"*THE PIT* hungers.",
+		"*THE PIT* is eternal.",
+		"*THE PIT* opens wide.",
+	}
+)
 
 func contributeToPit(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc *dynamodb.DynamoDB, count int) error {
 	sender, err := api.GetUserInfo(ev.User)
@@ -195,8 +197,12 @@ func contributeToPit(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc 
 		}
 	}
 
+	rand.Seed(time.Now().Unix())
+	pitMsg := pitMessages[rand.Intn(len(pitMessages))]
+
 	contributionText := fmt.Sprintf("%s has contributed %d burritos to the Pit! Their Pit Number is now %d with %d total contributed.", contributingUser.SlackDisplayName, newContribution, pitNumber, newContribution+contributingUser.PitContribution)
 
+	api.SendMessage(ev.Channel, slack.MsgOptionText(pitMsg, false))
 	api.SendMessage(ev.Channel, slack.MsgOptionText(contributionText, false))
 
 	model.UpdateUserStats(contributingUser, dynamoSvc)
