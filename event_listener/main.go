@@ -177,7 +177,7 @@ func contributeToPit(ev *slackevents.MessageEvent, api *slack.Client, dynamoSvc 
 		return nil
 	}
 
-	newContribution := count * 2
+	newContribution := count
 	contributingUser.PitContribution += newContribution
 	contributingUser.BurritoReserve -= newContribution
 
